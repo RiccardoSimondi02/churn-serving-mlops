@@ -225,3 +225,7 @@ mlruns/
 metrics-decision.md
 test.ipynb
 models/
+mlflow.db
+mlartifacts/
+run.txt
+README.md

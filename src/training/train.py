@@ -1,9 +1,9 @@
-
 import argparse
 import json
 from pathlib import Path
 
 import joblib
+import mlflow
 import numpy as np
 import pandas as pd
 import sklearn
@@ -12,7 +12,7 @@ from sklearn.linear_model import LogisticRegression
 import sklearn.metrics
 
 from src.inference.pipeline import build_pipeline
-from src.features.columns import ALL_FEATURES
+from src.features.columns import ALL_FEATURES, ID_COLUMN
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT / "models"
@@ -22,7 +22,7 @@ ESTIMATORS = {
     "logreg_balanced": lambda seed: LogisticRegression(
         max_iter=1000, class_weight="balanced", random_state=seed
     ),
-    "gb": lambda seed: GradientBoostingClassifier(random_state=seed),
+    "gb": lambda seed: GradientBoostingClassifier(random_state=seed, max_depth= 5),
 }
 
 def predict_scores(pipeline, X):
@@ -81,12 +81,15 @@ def run_training(estimator, scale_numeric, min_precision):
     y_score = predict_scores(pipeline, X_val)
     metrics = evaluate(y_score, y_val)
     precision, recall, threshold = find_threshold(y_score, y_val, min_precision)
+    sample = val_df[[ID_COLUMN] + ALL_FEATURES].head(50).copy()
+    sample["expected_score"] = y_score[:50]
     params = estimator.get_params()
     random_state = params.get("random_state")
+    max_depth = params.get("max_depth")
 
-    log_param = {"estimator": type(estimator).__name__, "scale_numeric": scale_numeric, "min_precision": min_precision,  "random_state": random_state}
+    log_param = {"estimator": type(estimator).__name__, "scale_numeric": scale_numeric, "min_precision": min_precision,  "random_state": random_state, "max_depth": max_depth}
     log_metric =  {"pr_auc": metrics["pr_auc"],"prevalence": metrics["prevalence"],"n_sample": metrics["n_sample"], "precision": precision, "recall": recall, "threshold": threshold}
-    return log_param, log_metric, pipeline
+    return log_param, log_metric, pipeline, sample
 
 
 def parse_args():
@@ -100,7 +103,7 @@ def parse_args():
         default=True,
         help="Standardise numeric features: needed by logistic regression, useless for trees.",
     )
-    parser.add_argument("--min-precision", type=float, default=0.50)
+    parser.add_argument("--min-precision", type=float, default=0.60)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--run-name",
@@ -114,10 +117,22 @@ def main():
     args = parse_args()
     run_name = args.run_name or f"{args.estimator}_{'scaled' if args.scale_numeric else 'raw'}"
 
+    mlflow.set_tracking_uri(f"sqlite:///{(ROOT / 'mlflow.db').as_posix()}")
+    mlflow.set_experiment("churn-model-selection")
+
     estimator = ESTIMATORS[args.estimator](args.seed)
-    log_param, log_metric, pipeline = run_training(
-        estimator, args.scale_numeric, args.min_precision
-    )
+
+    with mlflow.start_run(run_name = run_name):
+        log_param, log_metric, pipeline, sample = run_training(
+            estimator, args.scale_numeric, args.min_precision
+        )
+        mlflow.log_params(log_param)
+        mlflow.log_metrics(log_metric)
+        mlflow.log_table(sample, artifact_file="verification_sample.json")
+        model_info = mlflow.sklearn.log_model(
+            pipeline, name="model", skops_trusted_types=["src.inference.pipeline.clean"]
+        )
+        mlflow.set_tag("logged_model_id", model_info.model_id)
 
     print(f"run: {run_name}")
     for name, value in log_param.items():
