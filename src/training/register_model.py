@@ -3,8 +3,9 @@ from pathlib import Path
 import mlflow
 import numpy as np
 
-from src.features.columns import ALL_FEATURES
-from src.training.train import predict_scores
+from src.features.columns import ALL_FEATURES, ID_COLUMN
+from src.inference.pipeline import predict_scores
+
 
 MODEL_NAME = "churn-classifier"
 ALIAS = "champion"

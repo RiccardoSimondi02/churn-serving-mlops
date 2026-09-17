@@ -11,7 +11,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 import sklearn.metrics
 
-from src.inference.pipeline import build_pipeline
+from src.inference.pipeline import build_pipeline, predict_scores
 from src.features.columns import ALL_FEATURES, ID_COLUMN
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,14 +24,6 @@ ESTIMATORS = {
     ),
     "gb": lambda seed: GradientBoostingClassifier(random_state=seed, max_depth= 5),
 }
-
-def predict_scores(pipeline, X):
-    proba = pipeline.predict_proba(X)
-    classes_ = pipeline.named_steps["model"].classes_
-    positive_idx = list(classes_).index(1)
-    y_score = proba[:, positive_idx]
-    return y_score
-
 
 
 def load_dataset(): 
@@ -130,7 +122,7 @@ def main():
         mlflow.log_metrics(log_metric)
         mlflow.log_table(sample, artifact_file="verification_sample.json")
         model_info = mlflow.sklearn.log_model(
-            pipeline, name="model", skops_trusted_types=["src.inference.pipeline.clean"]
+            pipeline, name="model", serialization_format= "cloudpickle"
         )
         mlflow.set_tag("logged_model_id", model_info.model_id)
 

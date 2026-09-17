@@ -10,6 +10,14 @@ def clean(df):
     df = df.fillna(0)
     return df
 
+
+def predict_scores(pipeline, X):
+    proba = pipeline.predict_proba(X)
+    classes_ = pipeline.named_steps["model"].classes_
+    positive_idx = list(classes_).index(1)
+    y_score = proba[:, positive_idx]
+    return y_score
+
 def build_pipeline(estimator, scale_numeric):
     total_charges_pipeline = Pipeline(steps=[
     ("cleaner", FunctionTransformer(clean, feature_names_out="one-to-one")),
@@ -27,4 +35,7 @@ def build_pipeline(estimator, scale_numeric):
         ("model", estimator),
     ])
     return pipeline
+
+
+
 

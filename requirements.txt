@@ -5,3 +5,5 @@ pytest==9.1.1
 mlflow==3.16.0
 mlflow-skinny==3.16.0
 mlflow-tracing==3.16.0
+fastapi==0.141.1
+uvicorn==0.53.0
