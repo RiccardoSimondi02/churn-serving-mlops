@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 from typing import Literal
@@ -12,9 +13,13 @@ import mlflow
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
+from src.api.storage import build_engine, insert_prediction
 from src.features.columns import ALL_FEATURES
 from src.inference.pipeline import predict_scores
+from dotenv import load_dotenv
 
+
+load_dotenv()
 ROOT = Path(__file__).resolve().parents[2]
 logger = logging.getLogger(__name__)
 
@@ -31,10 +36,13 @@ async def lifespan(app: FastAPI):
         model = mlflow.sklearn.load_model(local_path)
         model_settings = mlflow.MlflowClient().get_model_version_by_alias(model_name, alias)
 
+        engine = build_engine()
+
         app.state.model = model
         app.state.version = model_settings.version
         app.state.threshold = float(model_settings.tags["threshold"])
         app.state.ready = True
+        app.state.engine = engine
     except Exception:
         logger.exception("Failed to load model during startup")
         app.state.ready = False
@@ -87,7 +95,7 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     request_id: str
     probability: float
-    decision: str
+    prediction: str
     threshold: float
     model_version: int
     customer_id: str
@@ -122,14 +130,22 @@ def predict(payload: PredictRequest, request: Request):
     
     y_score = predict_scores(app.state.model, X_df)[0]
 
-    decision = "churn" if y_score >= app.state.threshold else "no_churn"
+    prediction = "churn" if y_score >= request.app.state.threshold else "no_churn"
     request_id = str(uuid.uuid4())
-
-    return PredictResponse(
+    response = PredictResponse(
         request_id = request_id,
         probability = y_score,
-        decision = decision,
-        threshold = app.state.threshold,
-        model_version = app.state.version,
+        prediction = prediction,
+        threshold = request.app.state.threshold,
+        model_version = request.app.state.version,
         customer_id = payload.customer_id 
     )
+    time = datetime.now(timezone.utc)
+
+    try:
+        insert_prediction(request.app.state.engine, payload, response, time)
+    except Exception:
+        logger.exception("Failed to insert prediction in db")
+        raise HTTPException(status_code=500, detail="Failed to insert prediction")
+
+    return response
