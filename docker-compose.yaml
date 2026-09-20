@@ -14,6 +14,20 @@ services:
       - mynetwork
     restart: unless-stopped
 
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@tsdatabase:5432/${DB_NAME}
+      MODEL_NAME: ${MODEL_NAME}
+      MODEL_ALIAS: ${MODEL_ALIAS}
+    depends_on:
+      - tsdatabase
+    networks:
+      - mynetwork
+    restart: unless-stopped
+
 networks:
   mynetwork:
     driver: bridge

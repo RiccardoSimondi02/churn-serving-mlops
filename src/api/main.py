@@ -1,7 +1,5 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-import os
-from pathlib import Path
 from typing import Literal
 
 import logging
@@ -9,38 +7,28 @@ import uuid
 
 from fastapi import FastAPI, Request, HTTPException
 
-import mlflow
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
 from src.api.storage import build_engine, insert_prediction
 from src.features.columns import ALL_FEATURES
+from src.inference.model_loader import return_model_info
 from src.inference.pipeline import predict_scores
 from dotenv import load_dotenv
 
 
 load_dotenv()
-ROOT = Path(__file__).resolve().parents[2]
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        model_name = os.environ.get("MODEL_NAME", "churn-classifier")
-        alias = os.environ.get("MODEL_ALIAS", "champion")
-        uri = os.environ.get("MLFLOW_TRACKING_URI", f"sqlite:///{(ROOT / 'mlflow.db').as_posix()}")
-
-        mlflow.set_tracking_uri(uri)
-        model_uri = f"models:/{model_name}@{alias}"
-        local_path = mlflow.artifacts.download_artifacts(model_uri)
-        model = mlflow.sklearn.load_model(local_path)
-        model_settings = mlflow.MlflowClient().get_model_version_by_alias(model_name, alias)
-
+        model, version, threshold = return_model_info()
         engine = build_engine()
 
         app.state.model = model
-        app.state.version = model_settings.version
-        app.state.threshold = float(model_settings.tags["threshold"])
+        app.state.version = version
+        app.state.threshold = float(threshold)
         app.state.ready = True
         app.state.engine = engine
     except Exception:

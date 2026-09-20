@@ -1,8 +1,6 @@
 import argparse
-import json
 from pathlib import Path
 
-import joblib
 import mlflow
 import numpy as np
 import pandas as pd
@@ -15,7 +13,6 @@ from src.inference.pipeline import build_pipeline, predict_scores
 from src.features.columns import ALL_FEATURES, ID_COLUMN
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT / "models"
 
 ESTIMATORS = {
     "logreg": lambda seed: LogisticRegression(max_iter=1000, random_state=seed),
@@ -133,22 +130,6 @@ def main():
         formatted = f"{value:.4f}" if isinstance(value, float) else value
         print(f"  metric {name}: {formatted}")
 
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(pipeline, MODELS_DIR / f"{run_name}.joblib")
-
-    # The threshold travels with the model: a .joblib alone does not say at which
-    # cut-off it is meant to be used.
-    with open(MODELS_DIR / f"{run_name}.json", "w", encoding="utf-8") as f:
-        json.dump(
-            {"run_name": run_name, "params": log_param, "metrics": log_metric},
-            f,
-            indent=2,
-            default=float,
-        )
-
-    print(f"saved: {MODELS_DIR / run_name}.joblib and .json")
-
-    
 
 
 
