@@ -1,21 +1,18 @@
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Literal
-
 import logging
 import uuid
-
-from fastapi import FastAPI, Request, HTTPException
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from typing import Literal
 
 import pandas as pd
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 
 from src.api.storage import build_engine, insert_prediction
 from src.features.columns import ALL_FEATURES
 from src.inference.model_loader import return_model_info
 from src.inference.pipeline import predict_scores
-from dotenv import load_dotenv
-
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -128,12 +125,12 @@ def predict(payload: PredictRequest, request: Request):
         model_version = request.app.state.version,
         customer_id = payload.customer_id 
     )
-    time = datetime.now(timezone.utc)
+    time = datetime.now(UTC)
 
     try:
         insert_prediction(request.app.state.engine, payload, response, time)
-    except Exception:
+    except Exception as e:
         logger.exception("Failed to insert prediction in db")
-        raise HTTPException(status_code=500, detail="Failed to insert prediction")
+        raise HTTPException(status_code=500, detail="Failed to insert prediction") from e
 
     return response

@@ -1,0 +1,12 @@
+[tool.ruff]
+target-version = "py314"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "B", "F", "I", "UP"]
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: requires a running database (needs TEST_DATABASE_URL); skipped otherwise, run with -m integration",
+]

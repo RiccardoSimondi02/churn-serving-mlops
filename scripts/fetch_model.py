@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
 import shutil
+from datetime import UTC, datetime
+from pathlib import Path
+
 import mlflow
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,8 +33,8 @@ def main():
         "version": model_settings.version,
         "threshold": float(model_settings.tags["threshold"]),
         "run_id": model_settings.run_id,
-        "model_created_at": datetime.fromtimestamp(model_settings.creation_timestamp / 1000, tz=timezone.utc).isoformat(),
-        "build_fetched_at": datetime.now(timezone.utc).isoformat(),
+        "model_created_at": datetime.fromtimestamp(model_settings.creation_timestamp / 1000, tz=UTC).isoformat(),
+        "build_fetched_at": datetime.now(UTC).isoformat(),
     }
 
     with open(MODEL_PATH / "model_meta.json", "w", encoding="utf-8") as f:
