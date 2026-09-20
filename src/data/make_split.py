@@ -1,7 +1,10 @@
 from pathlib import Path
+from urllib.error import URLError
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from src.features.columns import DATA_URL
 
 
 def segment_churn_rate(segment_df):
@@ -9,7 +12,11 @@ def segment_churn_rate(segment_df):
 
 EXCLUDED = 60
 ROOT = Path(__file__).resolve().parents[2]
-df = pd.read_csv(ROOT / "data" / "raw" / "WA_Fn-UseC_-Telco-Customer-Churn.csv")
+
+try:
+    df = pd.read_csv(DATA_URL)
+except (URLError, OSError) as e:
+    raise RuntimeError(f"could not download the dataset from {DATA_URL}: {e}") from e
 
 
 
@@ -37,6 +44,6 @@ splits = {
     "eval_frozen": eval_frozen,
 }
 
-for name, split_df in splits.items():
+for split_df in splits.items():
     print("churn rate: " + str(round(segment_churn_rate(split_df), 2)) + "  len: " + str(len(split_df)))
 

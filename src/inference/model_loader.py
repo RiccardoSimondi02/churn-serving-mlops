@@ -11,7 +11,7 @@ def return_model_info():
     if model_path:
         model_path = Path(model_path)
         model = mlflow.sklearn.load_model(model_path)
-        with open(model_path / "model_meta.json", "r", encoding="utf-8") as f:
+        with open(model_path / "model_meta.json", encoding="utf-8") as f:
             data = json.load(f)
         version = data["version"]
         threshold = data["threshold"]

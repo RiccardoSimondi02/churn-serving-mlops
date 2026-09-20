@@ -3,8 +3,6 @@ import os
 from sqlalchemy import create_engine, text
 
 
-
-
 def build_engine():
     database_url = os.getenv("DATABASE_URL")
     if database_url:
@@ -28,14 +26,14 @@ def insert_prediction(engine, payload, response, time):
                     "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV",
                     "StreamingMovies", "Contract", "PaperlessBilling", "PaymentMethod",
                     tenure, "MonthlyCharges", "TotalCharges",
-                    prediction, threshold, probability, model_version
+                    prediction, threshold, probability, model_version, created_at
                 ) VALUES (
                     :request_id, :customer_id, :gender, :SeniorCitizen, :Partner, :Dependents,
                     :PhoneService, :MultipleLines, :InternetService, :OnlineSecurity,
                     :OnlineBackup, :DeviceProtection, :TechSupport, :StreamingTV,
                     :StreamingMovies, :Contract, :PaperlessBilling, :PaymentMethod,
                     :tenure, :MonthlyCharges, :TotalCharges,
-                    :prediction, :threshold, :probability, :model_version
+                    :prediction, :threshold, :probability, :model_version, :created_at
                 )
                 """
             ),

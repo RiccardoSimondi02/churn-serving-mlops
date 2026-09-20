@@ -47,3 +47,5 @@ ALL_FEATURES = NUMERIC_FEATURES + [NULLABLE_NUMERIC_FEATURE] + CATEGORICAL_FEATU
 
 SPLITS = ["train", "val", "test", "eval_frozen", "excluded"]
 
+DATA_URL= "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/1fd6fd70906479be1712e64cfc0ea89f58466629/data/Telco-Customer-Churn.csv"
+

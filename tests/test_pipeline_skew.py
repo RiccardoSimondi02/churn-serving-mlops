@@ -7,7 +7,6 @@ from src.features.columns import ALL_FEATURES
 from src.inference.pipeline import build_pipeline
 from src.training.train import load_dataset, predict_scores
 
-
 TOLERANCE = 1e-12
 
 

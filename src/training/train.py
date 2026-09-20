@@ -1,16 +1,17 @@
 import argparse
 from pathlib import Path
+from urllib.error import URLError
 
 import mlflow
 import numpy as np
 import pandas as pd
 import sklearn
+import sklearn.metrics
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-import sklearn.metrics
 
+from src.features.columns import ALL_FEATURES, DATA_URL, ID_COLUMN
 from src.inference.pipeline import build_pipeline, predict_scores
-from src.features.columns import ALL_FEATURES, ID_COLUMN
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -23,8 +24,12 @@ ESTIMATORS = {
 }
 
 
-def load_dataset(): 
-    df = pd.read_csv(ROOT / "data" / "raw" / "WA_Fn-UseC_-Telco-Customer-Churn.csv")
+def load_dataset():
+    try:
+        df = pd.read_csv(DATA_URL)
+    except (URLError, OSError) as e:
+        raise RuntimeError(f"could not download the dataset from {DATA_URL}: {e}") from e
+
     manifest_df = pd.read_csv(ROOT / "data" / "processed" / "split_manifest.csv")
 
     raw_len = len(df)

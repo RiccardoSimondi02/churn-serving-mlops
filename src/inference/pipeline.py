@@ -1,9 +1,14 @@
 import pandas as pd
-from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import FunctionTransformer, StandardScaler, OneHotEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
 
-from src.features.columns import NUMERIC_FEATURES, CATEGORICAL_FEATURES, NULLABLE_NUMERIC_FEATURE
+from src.features.columns import (
+    CATEGORICAL_FEATURES,
+    NULLABLE_NUMERIC_FEATURE,
+    NUMERIC_FEATURES,
+)
+
 
 def clean(df):
     df = df.apply(pd.to_numeric, errors="coerce")
