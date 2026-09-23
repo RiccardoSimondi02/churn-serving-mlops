@@ -26,14 +26,14 @@ def insert_prediction(engine, payload, response, time):
                     "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV",
                     "StreamingMovies", "Contract", "PaperlessBilling", "PaymentMethod",
                     tenure, "MonthlyCharges", "TotalCharges",
-                    prediction, threshold, probability, model_version, created_at
+                    prediction, threshold, probability, model_version, created_at, event_time
                 ) VALUES (
                     :request_id, :customer_id, :gender, :SeniorCitizen, :Partner, :Dependents,
                     :PhoneService, :MultipleLines, :InternetService, :OnlineSecurity,
                     :OnlineBackup, :DeviceProtection, :TechSupport, :StreamingTV,
                     :StreamingMovies, :Contract, :PaperlessBilling, :PaymentMethod,
                     :tenure, :MonthlyCharges, :TotalCharges,
-                    :prediction, :threshold, :probability, :model_version, :created_at
+                    :prediction, :threshold, :probability, :model_version, :created_at, :event_time
                 )
                 """
             ),
@@ -64,6 +64,33 @@ def insert_prediction(engine, payload, response, time):
                 "probability": response.probability,
                 "model_version": response.model_version,
                 "created_at": time,
+                "event_time": payload.event_time,
+            },
+        )
+        conn.commit()
+
+
+def insert_request_log(engine, request_id, method, path, status_code, duration_ms, routing_ms, predict_ms, insert_ms):
+    with engine.connect() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO request_log (
+                    request_id, method, path, status_code, duration_ms,
+                    routing_ms, predict_ms, insert_ms
+                ) VALUES (
+                    :request_id, :method, :path, :status_code, :duration_ms,
+                    :routing_ms, :predict_ms, :insert_ms
+                )
+            """),
+            {
+                "request_id": request_id,
+                "method": method,
+                "path": path,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+                "routing_ms": routing_ms,
+                "predict_ms": predict_ms,
+                "insert_ms": insert_ms,
             },
         )
         conn.commit()

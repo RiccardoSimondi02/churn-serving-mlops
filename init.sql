@@ -29,8 +29,26 @@ CREATE TABLE predictions (
     probability DOUBLE PRECISION NOT NULL,
     model_version TEXT NOT NULL,
 
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL,
+    event_time TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX idx_predictions_customer_id ON predictions (customer_id);
 CREATE INDEX idx_predictions_created_at ON predictions (created_at);
+
+CREATE INDEX idx_predictions_time_event_ ON predictions (event_time);
+
+
+CREATE TABLE request_log (
+    request_id TEXT NOT NULL,
+    method TEXT NOT NULL,
+    path TEXT NOT NULL,
+    status_code INTEGER NOT NULL,
+    duration_ms DOUBLE PRECISION NOT NULL,
+    routing_ms DOUBLE PRECISION,
+    predict_ms DOUBLE PRECISION,
+    insert_ms DOUBLE PRECISION,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_request_log_request_id ON request_log (request_id);

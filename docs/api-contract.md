@@ -40,19 +40,19 @@ POST /predict
 ## Response schema
 | Field        | Type   | Description                              |
 |--------------|--------|------------------------------------------|
-| prediction   | string | predicted class                          |
+| prediction   | string | one of: ["churn", "no_churn"]            |
 | threshold    | float  | threshold applied for prediction         |
 | probability  | float  | probability of the positive class, 0-1   |
-| model_version| string | identifier of the model used             |
+| model_version| int    | registry version number of the model used|
 | request_id   | string | identifier of the request                |
 | customer_id  | string | identifier of the customer               |
 
 ## Error responses
-| Code | Meaning                           |
-|------|-----------------------------------|
-| 422  | validation failed (see above)     |
-| 500  | internal error during inference   |
-| 503  | service not ready                 |
+| Code | Meaning                                                              |
+|------|----------------------------------------------------------------------|
+| 422  | validation failed (see above), with a body naming the offending field |
+| 500  | inference failed, or the prediction could not be recorded             |
+| 503  | service not ready: the model is not loaded                            |
 
 
 ## Health checks
