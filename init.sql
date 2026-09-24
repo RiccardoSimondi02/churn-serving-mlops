@@ -52,3 +52,14 @@ CREATE TABLE request_log (
 );
 
 CREATE INDEX idx_request_log_request_id ON request_log (request_id);
+
+
+
+CREATE TABLE IF NOT EXISTS drift_metrics (
+    day         DATE             NOT NULL,  -- last day of the window
+    feature     TEXT             NOT NULL,
+    window_days INTEGER          NOT NULL,
+    psi         DOUBLE PRECISION NOT NULL,
+    n_rows      INTEGER          NOT NULL,
+    PRIMARY KEY (day, feature, window_days)
+);
