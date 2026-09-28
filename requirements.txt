@@ -10,3 +10,4 @@ httpx2==2.13.0
 truststore==0.10.4
 python-dotenv==1.2.3
 SQLAlchemy==2.0.54
+prometheus-client==0.26.0

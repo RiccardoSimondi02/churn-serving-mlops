@@ -21,11 +21,12 @@ def tables_are_empty(engine):
     with engine.connect() as conn:
         predictions_count = conn.execute(text("SELECT count(*) FROM predictions")).scalar()
         request_log_count = conn.execute(text("SELECT count(*) FROM request_log")).scalar()
-    return predictions_count == 0 and request_log_count == 0
+        labels_count = conn.execute(text("SELECT count(*) FROM labels")).scalar()
+    return predictions_count == 0 and request_log_count == 0 and labels_count == 0
 
 def reset_tables(engine):
     with engine.connect() as conn:
-        conn.execute(text("TRUNCATE predictions, request_log"))
+        conn.execute(text("TRUNCATE predictions, request_log, labels"))
         conn.commit()
 
 def build_payload(row, event_time):

@@ -9,7 +9,8 @@ from typing import Literal
 
 import pandas as pd
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from src.api.storage import build_engine, insert_prediction, insert_request_log
@@ -20,6 +21,23 @@ from src.inference.pipeline import predict_scores
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+# Buckets built around the measured distribution (p50 49 ms at c=1, 150 ms at c=8,
+# max 223 ms): dense between 30 and 250 ms, sparse outside.
+LATENCY_BUCKETS = (
+    0.01, 0.02,
+    0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10,
+    0.12, 0.14, 0.16, 0.18, 0.20, 0.225, 0.25,
+    0.5, 1.0, 2.5,
+)
+
+REQUESTS = Counter(
+    "http_requests_total", "HTTP requests", ["method", "path", "status_code"],
+)
+LATENCY = Histogram(
+    "http_request_duration_seconds", "HTTP request latency", ["path"],
+    buckets=LATENCY_BUCKETS,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -112,6 +130,9 @@ async def add_request_id_header(request: Request, call_next):
     request.state.arrived_at = start
     response = await call_next(request)
     duration_ms = (time.perf_counter() - start) * 1000
+    path = request.url.path
+    REQUESTS.labels(request.method, path, str(response.status_code)).inc()
+    LATENCY.labels(path).observe(duration_ms / 1000)
     response.headers["X-Request-ID"] = request_id
     logger.info(json.dumps({
         "request_id": request_id,
@@ -196,3 +217,8 @@ def predict(payload: PredictRequest, request: Request):
         request.state.insert_ms = insert_ms
 
     return response
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

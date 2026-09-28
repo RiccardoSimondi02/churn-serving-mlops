@@ -63,3 +63,10 @@ CREATE TABLE IF NOT EXISTS drift_metrics (
     n_rows      INTEGER          NOT NULL,
     PRIMARY KEY (day, feature, window_days)
 );
+
+
+CREATE TABLE IF NOT EXISTS labels (
+    request_id   TEXT        PRIMARY KEY REFERENCES predictions (request_id),
+    label        SMALLINT    NOT NULL CHECK (label IN (0, 1)),
+    available_at TIMESTAMPTZ NOT NULL
+);
