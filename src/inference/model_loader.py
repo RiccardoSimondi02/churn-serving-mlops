@@ -7,6 +7,14 @@ import mlflow
 ROOT = Path(__file__).resolve().parents[2]
 
 def return_model_info():
+    """Load the serving model and return (model, version, threshold).
+
+    Two sources, chosen by env var:
+    - MODEL_PATH set: load a model baked into the image and read version/threshold
+      from the sidecar model_meta.json (offline/container path, no MLflow needed).
+    - otherwise: resolve the champion alias in the MLflow registry, download the
+      artifact, and read the threshold from the model version tags.
+    """
     model_path = os.environ.get("MODEL_PATH")
     if model_path:
         model_path = Path(model_path)

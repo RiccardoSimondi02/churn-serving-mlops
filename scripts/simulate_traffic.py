@@ -30,6 +30,7 @@ def reset_tables(engine):
         conn.commit()
 
 def build_payload(row, event_time):
+    """Turn a dataset row into a /predict request body for the given event_time."""
     body = json.loads(row[ALL_FEATURES].to_json())
     body["customer_id"] = str(row["customerID"])
     raw_total = body["TotalCharges"]
@@ -38,6 +39,7 @@ def build_payload(row, event_time):
     return body
 
 async def send_request(client, semaphore, payload):
+    """POST one payload to /predict under a concurrency limit; return True on success."""
     async with semaphore:
         try:
             response = await client.post("/predict", json=payload)
@@ -48,6 +50,13 @@ async def send_request(client, semaphore, payload):
             return False
 
 async def run(seed, base_url, concurrency):
+    """Replay TIMES_SPAN days of synthetic traffic against the API, injecting drift.
+
+    Each simulated day generates a random request volume (halved on weekends).
+    From RAMP_START_DAY onward an increasing fraction of requests is drawn from
+    the 'excluded' pool instead of 'test', ramping up to TARGET so covariate drift
+    grows over time. Requests are fired concurrently up to `concurrency`.
+    """
     async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
 
         tasks = []

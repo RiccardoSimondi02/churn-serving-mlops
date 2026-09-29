@@ -12,6 +12,14 @@ ALIAS = "champion"
 ROOT = Path(__file__).resolve().parents[2]
 
 def main():
+    """Register a run's model in the MLflow registry, verify it, and optionally promote it.
+
+    Reuses an existing registered version if one already points at the run's model
+    artifact; otherwise registers a new version, tags it with the run's threshold,
+    and verifies reproducibility by re-scoring the logged verification sample and
+    aborting if any row diverges. With --promote, moves the champion alias to this
+    version.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--promote", action="store_true")

@@ -11,12 +11,19 @@ from src.features.columns import (
 
 
 def clean(df):
+    """Coerce TotalCharges to numeric and replace missing values with 0.
+
+    Non-numeric strings (e.g. the blank cells present for brand-new customers)
+    become NaN and are then filled with 0.
+    """
     df = df.apply(pd.to_numeric, errors="coerce")
     df = df.fillna(0)
     return df
 
 
 def predict_scores(pipeline, X):
+    """Return the predicted probability of the positive class (churn == 1).
+    """
     proba = pipeline.predict_proba(X)
     classes_ = pipeline.named_steps["model"].classes_
     positive_idx = list(classes_).index(1)
@@ -24,6 +31,13 @@ def predict_scores(pipeline, X):
     return y_score
 
 def build_pipeline(estimator, scale_numeric):
+    """Assemble the full preprocessing + model pipeline.
+
+    Numeric and categorical features are handled by a ColumnTransformer, while
+    TotalCharges gets its own branch (clean, then optional scaling) because it
+    needs the deterministic null handling from `clean`. `scale_numeric` toggles
+    standardisation, which logistic regression needs but tree models don't.
+    """
     total_charges_pipeline = Pipeline(steps=[
     ("cleaner", FunctionTransformer(clean, feature_names_out="one-to-one")),
     ("scale", StandardScaler() if scale_numeric else "passthrough")

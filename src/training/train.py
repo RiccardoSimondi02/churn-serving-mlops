@@ -25,6 +25,10 @@ ESTIMATORS = {
 
 
 def load_dataset():
+    """Load the raw dataset, join it to the split manifest and encode the target.
+
+    Merges on customerID and maps Churn from Yes/No to 1/0.
+    """
     try:
         df = pd.read_csv(DATA_URL)
     except (URLError, OSError) as e:
@@ -43,11 +47,19 @@ def load_dataset():
     return merged_df
 
 def evaluate(y_score, y_true):
+    """Summarise ranking quality with PR-AUC, plus prevalence and sample size."""
     pr_auc = sklearn.metrics.average_precision_score(y_true, y_score)
     return {"pr_auc": pr_auc,"prevalence": y_true.mean(),"n_sample": len(y_true)}
-    
+
 
 def find_threshold(y_score, y_true, min_precision):
+    """Pick the operating threshold that meets a minimum-precision constraint.
+
+    Walks the precision-recall curve and takes the first point whose precision is
+    at least `min_precision` (argmax on the boolean mask returns the first True),
+    which corresponds to the highest-recall threshold satisfying the constraint.
+    Raises ValueError if no threshold reaches the required precision.
+    """
     best = 0
     precision, recall, thresholds = sklearn.metrics.precision_recall_curve(y_true, y_score)
 
@@ -62,6 +74,10 @@ def find_threshold(y_score, y_true, min_precision):
 
 
 def run_training(estimator, scale_numeric, min_precision):
+    """Fit on the train split and evaluate on val, returning artifacts to log.
+
+    Returns (params, metrics, fitted pipeline, sample).
+    """
     df = load_dataset()
     train_df = df[df["split"] == "train"]
     X_train = train_df[ALL_FEATURES]

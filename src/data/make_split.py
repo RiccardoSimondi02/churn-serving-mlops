@@ -8,6 +8,7 @@ from src.features.columns import DATA_URL
 
 
 def segment_churn_rate(segment_df):
+    """Return the churn rate (percentage of 'Yes') within a segment DataFrame."""
     return len(segment_df[segment_df["Churn"] == "Yes"]) / len(segment_df) * 100
 
 EXCLUDED = 60

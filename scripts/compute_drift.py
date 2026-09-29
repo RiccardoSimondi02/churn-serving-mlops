@@ -1,5 +1,3 @@
-
-
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
@@ -21,11 +19,18 @@ NUMERIC_MONITORED = ["tenure", "MonthlyCharges", NULLABLE_NUMERIC_FEATURE, "scor
 CATEGORICAL_MONITORED = {**CATEGORICAL_VALUES, "SeniorCitizen": [0, 1]}
 
 def fit_numeric_bins(ref_values, n_bins=N_BINS):
+    """Derive quantile bin edges from the reference sample for a numeric feature.
+    """
     _, edges = pd.qcut(ref_values.dropna(), q=n_bins, retbins = True, duplicates="drop")
     edges[0], edges[-1] = -np.inf, np.inf
     return edges
 
 def numeric_shares(values, edges):
+    """Return the fraction of `values` in each bin, with missing values as their own bin.
+
+    NaNs are counted in a dedicated 'missing' bucket rather than dropped, so a
+    change in the missing rate itself shows up as drift. Shares sum to 1.
+    """
     binned = pd.cut(values, bins=edges)
     shares = binned.value_counts(normalize=False, sort=False)
     nan_counter = pd.isna(values).sum()
@@ -34,15 +39,27 @@ def numeric_shares(values, edges):
     return shares
 
 def categorical_shares(values, categories):
+    """Return the share of each expected category, filling absent ones with 0."""
     return values.value_counts(normalize=True).reindex(categories, fill_value=0)
 
 def psi(p_ref, q_cur, n_ref, n_cur):
-    # empty bins count as half an observation of their own sample: eps = 1/(2n)
+    """Population Stability Index between a reference and a current distribution.
+
+    PSI = sum((q - p) * ln(q / p)) over aligned bins. Empty bins would make the
+    log blow up, so each share is floored at half an observation of its own
+    sample (eps = 1/(2n)) before the sum.
+    """
     p = np.clip(p_ref.to_numpy(dtype=float), 1 / (2 * n_ref), None)
     q = np.clip(q_cur.to_numpy(dtype=float), 1 / (2 * n_cur), None)
     return float(np.sum((q - p) * np.log(q / p)))
 
 def load_reference(model):
+    """Build the reference distribution from the val split, including model scores.
+
+    The val split is the baseline PSI compares live traffic against; scores are
+    added as a monitored feature and TotalCharges is coerced to numeric to match
+    how traffic is read.
+    """
     df = load_dataset()
     ref = df[df["split"] == "val"].copy()
 
@@ -51,6 +68,7 @@ def load_reference(model):
     return ref
 
 def load_traffic(engine):
+    """Load scored production requests, one row per prediction, bucketed by event day."""
     columns = ", ".join(f'"{c}"' for c in ALL_FEATURES)
     query = f"""
         SELECT event_time::date AS day, probability AS score, {columns}
@@ -59,6 +77,13 @@ def load_traffic(engine):
     return pd.read_sql(text(query), engine)
 
 def compute_metrics(traffic, window_days, n_ref, numeric_bins, p_numerical, p_categorical):
+    """Compute per-feature PSI for each rolling window of `window_days` over the traffic.
+
+    Slides a trailing window ending on each day (skipping the initial days that
+    can't form a full window) and, for every monitored numeric and categorical
+    feature, compares the window's distribution against the reference via PSI.
+    Returns a flat list of {day, feature, window_days, psi, n_rows} records.
+    """
     days = sorted(traffic["day"].unique())
     # skip incomplete windows at the start of the traffic
     first_full = days[0] + pd.Timedelta(days=window_days - 1)
@@ -86,11 +111,18 @@ def compute_metrics(traffic, window_days, n_ref, numeric_bins, p_numerical, p_ca
     return result
 
 def write_metrics(engine, metrics):
+    """Replace the drift_metrics table with the freshly computed metrics (truncate + insert)."""
     with engine.begin() as conn:
         conn.execute(text("TRUNCATE drift_metrics"))
         metrics.to_sql("drift_metrics", conn, if_exists="append", index=False)
 
 def main():
+    """Recompute PSI drift metrics for all windows and persist them.
+
+    Guards that traffic was scored by exactly one model version and that it
+    matches the current champion, fits reference bins/shares from the val split,
+    computes PSI for every window in WINDOWS, and writes the result to drift_metrics.
+    """
     load_dotenv()
     engine = build_engine()
     with engine.connect() as conn:

@@ -41,6 +41,11 @@ LATENCY = Histogram(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Load the model and open the DB engine once at startup.
+
+    On success the app is marked ready; on any failure the exception is logged
+    and `ready` stays False so /readyz reports 503.
+    """
     try:
         model, version, threshold = return_model_info()
         engine = build_engine()
@@ -124,6 +129,12 @@ app.state.ready = False
 
 @app.middleware("http")
 async def add_request_id_header(request: Request, call_next):
+    """Assign/propagate a request id, time the request, and record telemetry.
+
+    Updates the Prometheus counters/histogram, emits a structured log line, and
+    writes a row to request_log (off the event loop). A failed request_log write
+    is logged but never blocks the response.
+    """
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     request.state.request_id = request_id
     start = time.perf_counter()
@@ -174,6 +185,14 @@ async def readyz(request: Request):
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(payload: PredictRequest, request: Request):
+    """Score one customer and persist the prediction.
+
+    Returns 503 until the model is loaded. Defaults event_time to now when the
+    caller omits it, scores the payload, applies the champion threshold to turn
+    the probability into a churn/no_churn label, and persists the row; a failed
+    insert surfaces as a 500. Stage timings are stashed on request.state for the
+    middleware to log.
+    """
     routing_ms = (time.perf_counter() - request.state.arrived_at) * 1000
     request.state.routing_ms = routing_ms
 

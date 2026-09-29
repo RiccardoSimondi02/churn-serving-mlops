@@ -16,6 +16,7 @@ GATE_MIN_PR_AUC = 0.64
 
 
 def bootstrap_pr_auc(y_score, y_true, n_iterations=1000, seed=42):
+    """Bootstrap the sampling distribution of PR-AUC on eval_frozen."""
     y_true = np.asarray(y_true)
     n = len(y_true)
     rng = np.random.default_rng(seed)
@@ -39,6 +40,13 @@ def bootstrap_pr_auc(y_score, y_true, n_iterations=1000, seed=42):
 
 
 def main():
+    """Retrain the champion config and gate its PR-AUC on the frozen eval split.
+
+    Trains the fixed champion configuration, scores the held-out eval_frozen split
+    and prints its metrics. With --bootstrap it instead reports the PR-AUC
+    confidence band. Otherwise it fails the process (exit 1) when PR-AUC drops
+    below GATE_MIN_PR_AUC, which is what wires this into CI as a regression gate.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--bootstrap",action="store_true")
     args = parser.parse_args()

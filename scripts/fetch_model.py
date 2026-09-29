@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "build" / "model"
 
 def main():
+    """Download the champion model into build/model for baking into the serving image."""
     model_name = os.environ.get("MODEL_NAME", "churn-classifier")
     alias = os.environ.get("MODEL_ALIAS", "champion")
     uri = os.environ.get("MLFLOW_TRACKING_URI", f"sqlite:///{(ROOT / 'mlflow.db').as_posix()}")

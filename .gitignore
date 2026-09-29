@@ -228,7 +228,8 @@ models/
 mlflow.db
 mlartifacts/
 run.txt
-README.md
+README-vecchio.md
+README-vecchio2.md
 bench_inference.py
 
 

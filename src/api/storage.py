@@ -4,6 +4,11 @@ from sqlalchemy import create_engine, text
 
 
 def build_engine():
+    """Create a SQLAlchemy engine from env vars.
+
+    Prefers a full DATABASE_URL when present; otherwise assembles a local
+    Postgres URL from the DB_USER / DB_PASSWORD / DB_NAME components.
+    """
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         return create_engine(database_url)
@@ -16,6 +21,11 @@ def build_engine():
 
 
 def insert_prediction(engine, payload, response, time):
+    """Persist one scored request: the full feature payload plus the model output.
+
+    `time` is the server-side created_at; the request's own event_time is stored
+    separately so drift/label jobs can bucket rows by when the event occurred.
+    """
     with engine.connect() as conn:
         conn.execute(
             text(
@@ -71,6 +81,7 @@ def insert_prediction(engine, payload, response, time):
 
 
 def insert_request_log(engine, request_id, method, path, status_code, duration_ms, routing_ms, predict_ms, insert_ms):
+    """Persist per-request log: total latency and its routing/predict/insert breakdown."""
     with engine.connect() as conn:
         conn.execute(
             text("""

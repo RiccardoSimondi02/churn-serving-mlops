@@ -26,6 +26,10 @@ def load_predictions(engine):
     return pd.read_sql(text(query), engine)
 
 def attach_truth(predictions, dataset):
+    """Join each prediction to its ground-truth Churn label from the dataset.
+
+    Left-joins on customer_id.
+    """
     truth = dataset[["customerID", "Churn"]].rename(
         columns={"customerID": "customer_id", "Churn": "label"})
     merged = predictions.merge(truth, on="customer_id", how="left", validate="many_to_one")
@@ -34,6 +38,13 @@ def attach_truth(predictions, dataset):
     return merged
 
 def assign_available_at(df, rng):
+    """Simulate when each label becomes known, modelling label-arrival latency.
+
+    Churners (label == 1) resolve on a random day within the observation window,
+    since churn can be observed as soon as it happens; non-churners are only
+    confirmed once the full OBSERVATION_DAYS window has elapsed with no churn.
+    available_at = event_time + that delay.
+    """
     churn_delay = rng.integers(1, OBSERVATION_DAYS + 1, size=len(df))
     delay_days = np.where(df["label"] == 1, churn_delay, OBSERVATION_DAYS)
     df = df.copy()
@@ -41,6 +52,7 @@ def assign_available_at(df, rng):
     return df
 
 def write_labels(engine, labels):
+    """Insert the generated labels."""
     with engine.begin() as conn:
         labels[["request_id", "label", "available_at"]].to_sql(
             "labels", conn, if_exists="append", index=False)
